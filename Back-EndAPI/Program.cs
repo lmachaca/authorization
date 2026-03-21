@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,21 +28,33 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped(typeof(CrudService<>));
 builder.Services.AddScoped<CharacterService>();
 
-
-
-
+// Configure JWT Authentication
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+        };
+    });
 
 var app = builder.Build();
 
 // TEMP DB TEST (optional)
-using (var scope = app.Services.CreateScope())
-{
-    var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
-    var connString = config.GetConnectionString("DefaultConnection");
-    using var conn = new Npgsql.NpgsqlConnection(connString);
-    conn.Open();
-    Console.WriteLine("Connected to Postgres!");
-}
+//using (var scope = app.Services.CreateScope())
+//{
+  //  var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+    //var connString = config.GetConnectionString("DefaultConnection");
+    //using var conn = new Npgsql.NpgsqlConnection(connString);
+    //conn.Open();
+   // Console.WriteLine("Connected to Postgres!");
+//}
 
 app.UseCors();
 
@@ -55,6 +70,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAuthentication(); 
 app.UseAuthorization();
 app.MapControllers();
 app.Run();
